@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CognoLearn — Cognitive Load Driven Academic Optimization</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --green: #1D9E75; --green-light: #E1F5EE; --green-dark: #0F6E56; --green-deep: #085041;
+    --amber: #EF9F27; --amber-light: #FAEEDA; --amber-dark: #854F0B;
+    --red: #E24B4A; --red-light: #FCEBEB; --red-dark: #A32D2D;
+    --blue: #378ADD; --blue-light: #E6F1FB; --blue-dark: #185FA5;
+    --gray: #888780; --gray-light: #F1EFE8; --gray-dark: #444441;
+    --bg: #F7F6F2; --surface: #FFFFFF; --border: rgba(0,0,0,0.08);
+    --text: #1a1a18; --text2: #5F5E5A; --text3: #888780;
+    --radius: 12px; --radius-sm: 8px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .topbar { background: var(--green-dark); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .topbar-logo { display: flex; align-items: center; gap: 10px; }
+  .logo-text { font-size: 15px; font-weight: 600; color: #fff; letter-spacing: -0.01em; }
+  .logo-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-left: 4px; }
+  .topbar-nav { display: flex; gap: 4px; }
+  .tnav { font-size: 13px; padding: 7px 16px; border-radius: var(--radius-sm); cursor: pointer; color: rgba(255,255,255,0.7); border: none; background: transparent; font-family: inherit; transition: all 0.15s; }
+  .tnav:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .tnav.active { background: rgba(255,255,255,0.18); color: #fff; font-weight: 500; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: #5DCAA5; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .page { display: none; padding: 28px; animation: fadeIn 0.2s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  .page-title { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .page-sub { font-size: 14px; color: var(--text3); margin-bottom: 24px; }
+
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px; box-shadow: var(--shadow); }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--text3); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-bottom: 20px; }
+  .metric { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 18px 20px; box-shadow: var(--shadow); }
+  .metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .metric-value { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+  .metric-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .student-table { width: 100%; border-collapse: collapse; }
+  .student-table th { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .student-table td { padding: 12px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  .student-table tr:last-child td { border-bottom: none; }
+  .student-table tr { cursor: pointer; transition: background 0.1s; }
+  .student-table tr:hover td { background: var(--gray-light); }
+  .student-table tr.selected td { background: var(--green-light); }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 99px; }
+  .badge-low { background: var(--green-light); color: var(--green-deep); }
+  .badge-med { background: var(--amber-light); color: var(--amber-dark); }
+  .badge-high { background: var(--red-light); color: var(--red-dark); }
+  .badge-blue { background: var(--blue-light); color: var(--blue-dark); }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bar-label { font-size: 12px; color: var(--text2); width: 100px; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 7px; background: var(--gray-light); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+  .bar-val { font-size: 12px; font-weight: 500; width: 36px; text-align: right; font-family: 'DM Mono', monospace; }
+
+  .reco { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 10px; }
+  .reco-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .reco-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .reco-tag { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  .teacher-layout { display: grid; grid-template-columns: 1fr 360px; gap: 16px; }
+  .detail-panel { display: none; }
+  .detail-panel.active { display: block; animation: fadeIn 0.2s ease; }
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text3); cursor: pointer; margin-bottom: 16px; padding: 6px 0; border: none; background: none; font-family: inherit; }
+  .back-btn:hover { color: var(--green-dark); }
+
+  .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+
+  .slider-group { margin-bottom: 16px; }
+  .slider-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+  .slider-val { font-weight: 600; color: var(--text); font-family: 'DM Mono', monospace; }
+  input[type=range] { width: 100%; accent-color: var(--green); cursor: pointer; }
+
+  .pred-box { text-align: center; padding: 20px; background: var(--green-light); border-radius: var(--radius); margin: 16px 0; border: 1px solid rgba(29,158,117,0.2); }
+  .pred-score { font-size: 52px; font-weight: 600; color: var(--green-dark); letter-spacing: -0.03em; font-family: 'DM Mono', monospace; }
+  .pred-label { font-size: 12px; color: var(--green-deep); margin-top: 4px; }
+  .cl-meter { display: flex; gap: 4px; margin-top: 14px; height: 8px; border-radius: 99px; overflow: hidden; }
+  .cl-seg { flex: 1; transition: background 0.3s; }
+
+  .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 12px; }
+  .alert-warn { background: var(--amber-light); color: var(--amber-dark); }
+  .alert-danger { background: var(--red-light); color: var(--red-dark); }
+  .alert-ok { background: var(--green-light); color: var(--green-deep); }
+
+  .ext-popup { width: 320px; background: var(--surface); border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 8px 40px rgba(0,0,0,0.14); overflow: hidden; margin: 0 auto; }
+  .ext-header { background: var(--green-dark); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .ext-logo { font-size: 14px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .ext-status { font-size: 11px; color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.12); padding: 3px 10px; border-radius: 99px; }
+  .ext-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .ext-tab { flex: 1; font-size: 12px; padding: 9px; text-align: center; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; transition: all 0.15s; }
+  .ext-tab.active { color: var(--green-dark); border-bottom-color: var(--green); font-weight: 500; }
+  .ext-body { padding: 14px 16px; }
+  .ext-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .ext-stat { background: var(--gray-light); border-radius: 8px; padding: 10px; text-align: center; }
+  .ext-stat-val { font-size: 17px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .ext-stat-label { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .ext-section { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .ext-section-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .ext-reco { background: var(--green-light); border-radius: 8px; padding: 10px 12px; display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+  .ext-reco-text { font-size: 12px; color: var(--green-deep); line-height: 1.5; }
+  .ext-footer { border-top: 1px solid var(--border); padding: 10px 16px; display: flex; gap: 8px; }
+  .ext-btn { flex: 1; font-size: 12px; padding: 8px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 500; }
+  .ext-btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .ext-btn-primary { background: var(--green-dark); border: none; color: #fff; }
+
+  .week-chart { display: flex; align-items: flex-end; gap: 8px; height: 80px; }
+  .week-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+  .week-bar-wrap { flex: 1; display: flex; align-items: flex-end; width: 100%; }
+  .week-bar { width: 100%; border-radius: 4px 4px 0 0; }
+  .week-day { font-size: 10px; color: var(--text3); }
+
+  .corr-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 0; }
+  .corr-cell { padding: 12px; border-radius: var(--radius-sm); text-align: center; background: var(--gray-light); }
+  .corr-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+  .corr-val { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; }
+
+  .arch-flow { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; padding: 16px 0; }
+  .arch-box { background: var(--green-light); border: 1px solid rgba(29,158,117,0.25); border-radius: var(--radius-sm); padding: 12px 16px; text-align: center; }
+  .arch-box-title { font-size: 12px; font-weight: 600; color: var(--green-deep); }
+  .arch-box-sub { font-size: 11px; color: var(--green-dark); margin-top: 2px; }
+  .arch-box.dark { background: var(--green-dark); border-color: var(--green-dark); }
+  .arch-box.dark .arch-box-title { color: #fff; }
+  .arch-box.dark .arch-box-sub { color: rgba(255,255,255,0.7); }
+  .arch-arrow { font-size: 18px; color: var(--green); padding: 0 4px; }
+
+  .section-gap { margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">
+    <span class="logo-text">CognoLearn</span>
+    <span class="logo-sub">Cognitive Load Academic Optimization Model</span>
+  </div>
+  <div class="topbar-nav">
+    <button class="tnav active" onclick="showPage('teacher',this)">Teacher View</button>
+    <button class="tnav" onclick="showPage('student',this)">Student View</button>
+    <button class="tnav" onclick="showPage('predictor',this)">ML Predictor</button>
+    <button class="tnav" onclick="showPage('extension',this)">Extension</button>
+    <button class="tnav" onclick="showPage('analytics',this)">Analytics</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span style="font-size:12px;color:rgba(255,255,255,0.5)">Live Demo</span>
+    <div class="pulse"></div>
+  </div>
+</div>
+
+<!-- TEACHER VIEW -->
+<div class="page active" id="page-teacher">
+  <div class="page-title">Teacher Dashboard</div>
+  <div class="page-sub">Monitor cognitive load and academic performance across all students in real time</div>
+
+  <div class="metrics-grid">
+    <div class="metric"><div class="metric-label">Total Students</div><div class="metric-value">24</div><div class="metric-sub">Sem 4 — CSE</div></div>
+    <div class="metric"><div class="metric-label">High Load Alert</div><div class="metric-value" style="color:var(--red)">6</div><div class="metric-sub">Need intervention</div></div>
+    <div class="metric"><div class="metric-label">Avg Predicted Score</div><div class="metric-value" style="color:var(--green-dark)">74.2</div><div class="metric-sub">Linear Regression model</div></div>
+    <div class="metric"><div class="metric-label">Low Efficiency</div><div class="metric-value" style="color:var(--amber)">9</div><div class="metric-sub">Below 60% efficiency</div></div>
+  </div>
+
+  <div class="teacher-layout">
+    <div class="card">
+      <div class="card-title">All Students — click any row to view details</div>
+      <table class="student-table">
+        <thead><tr>
+          <th>Student</th><th>CGPA</th><th>Cognitive Load</th><th>Efficiency</th><th>Predicted Score</th><th>Status</th>
+        </tr></thead>
+        <tbody id="student-tbody"></tbody>
+      </table>
+    </div>
+
+    <div>
+      <div id="detail-placeholder" class="card">
+        <div style="text-align:center;padding:40px 16px;color:var(--text3)">
+          <div style="font-size:36px;margin-bottom:12px">👆</div>
+          <div style="font-size:14px">Click a student to view their detailed cognitive load analysis and recommendations</div>
+        </div>
+      </div>
+      <div class="detail-panel" id="detail-panel">
+        <button class="back-btn" onclick="clearDetail()">← Back</button>
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+            <div class="avatar" id="d-avatar"></div>
+            <div><div style="font-size:15px;font-weight:600" id="d-name"></div><div style="font-size:12px;color:var(--text3)" id="d-meta"></div></div>
+            <div style="margin-left:auto" id="d-badge"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+            <div style="background:var(--gray-light);border-radius:8px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace" id="d-score"></div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Predicted Score</div>
+            </div>
+            <div style="background:var(--gray-light);border-radius:8px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:600;font-family:'DM Mono',monospace" id="d-eff"></div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Study Efficiency</div>
+            </div>
+          </div>
+          <div class="card-title">Behavior Metrics</div>
+          <div id="d-bars"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Personalized Recommendations</div>
+          <div id="d-recos"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STUDENT VIEW -->
+<div class="page" id="page-student">
+  <div class="page-title">Student Dashboard — Kritika Mittal</div>
+  <div class="page-sub">Your personalized cognitive load and performance analysis for today's session</div>
+
+  <div class="metrics-grid">
+    <div class="metric"><div class="metric-label">Today's Session</div><div class="metric-value">1h 42m</div><div class="metric-sub">Active study time</div></div>
+    <div class="metric"><div class="metric-label">Cognitive Load</div><div class="metric-value" style="color:var(--amber)">Medium</div><div class="metric-sub">Random Forest model</div></div>
+    <div class="metric"><div class="metric-label">Predicted Score</div><div class="metric-value" style="color:var(--green-dark)">82</div><div class="metric-sub">Out of 100</div></div>
+    <div class="metric"><div class="metric-label">Study Efficiency</div><div class="metric-value">74%</div><div class="metric-sub">Above class average</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Study Behavior Metrics</div>
+      <div class="bar-row"><div class="bar-label">Study hrs/day</div><div class="bar-track"><div class="bar-fill" style="width:68%;background:var(--green)"></div></div><div class="bar-val">68%</div></div>
+      <div class="bar-row"><div class="bar-label">Consistency</div><div class="bar-track"><div class="bar-fill" style="width:74%;background:var(--green)"></div></div><div class="bar-val">74%</div></div>
+      <div class="bar-row"><div class="bar-label">Attendance</div><div class="bar-track"><div class="bar-fill" style="width:86%;background:var(--green)"></div></div><div class="bar-val">86%</div></div>
+      <div class="bar-row"><div class="bar-label">Break pattern</div><div class="bar-track"><div class="bar-fill" style="width:58%;background:var(--amber)"></div></div><div class="bar-val">58%</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Cognitive Load Indicators</div>
+      <div class="bar-row"><div class="bar-label">Click rate</div><div class="bar-track"><div class="bar-fill" style="width:52%;background:var(--amber)"></div></div><div class="bar-val">52%</div></div>
+      <div class="bar-row"><div class="bar-label">Pause duration</div><div class="bar-track"><div class="bar-fill" style="width:61%;background:var(--amber)"></div></div><div class="bar-val">61%</div></div>
+      <div class="bar-row"><div class="bar-label">Task switching</div><div class="bar-track"><div class="bar-fill" style="width:38%;background:var(--green)"></div></div><div class="bar-val">38%</div></div>
+      <div class="bar-row"><div class="bar-label">Session length</div><div class="bar-track"><div class="bar-fill" style="width:72%;background:var(--green)"></div></div><div class="bar-val">72%</div></div>
+    </div>
+  </div>
+
+  <div class="card section-gap">
+    <div class="card-title">Weekly Study Pattern</div>
+    <div class="week-chart">
+      <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:55%;background:var(--green)"></div></div><div class="week-day">Mon</div></div>
+      <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:70%;background:var(--green)"></div></div><div class="week-day">Tue</div></div>
+      <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:35%;background:var(--amber)"></div></div><div class="week-day">Wed</div></div>
+      <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:85%;background:var(--green)"></div></div><div class="week-day">Thu</div></div>
+      <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:60%;background:var(--green)"></div></div><div class="week-day">Fri</div></div>
+      <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:20%;background:var(--red)"></div></div><div class="week-day">Sat</div></div>
+      <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:45%;background:var(--blue)"></div></div><div class="week-day">Today</div></div>
+    </div>
+  </div>
+
+  <div class="card section-gap">
+    <div class="card-title">Personalized Recommendations</div>
+    <div class="reco"><div class="reco-icon" style="background:var(--green-light)">⏱</div><div><div class="reco-text">Reduce session length to 45-minute blocks with 5-minute breaks to reset cognitive load</div><div class="reco-tag">Cognitive load relief · High impact</div></div></div>
+    <div class="reco"><div class="reco-icon" style="background:var(--blue-light)">📅</div><div><div class="reco-text">Improve Wednesday consistency — your mid-week dip is lowering overall efficiency</div><div class="reco-tag">Habit formation · Medium impact</div></div></div>
+    <div class="reco"><div class="reco-icon" style="background:var(--amber-light)">🔁</div><div><div class="reco-text">Minimize task-switching during deep study sessions — focus on one topic per block</div><div class="reco-tag">Focus optimization · High impact</div></div></div>
+  </div>
+</div>
+
+<!-- ML PREDICTOR -->
+<div class="page" id="page-predictor">
+  <div class="page-title">ML Prediction Engine</div>
+  <div class="page-sub">Adjust parameters to see how Random Forest + Linear Regression predicts academic performance in real time</div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Input Parameters</div>
+      <div class="slider-group"><div class="slider-label"><span>Study hours per day</span><span class="slider-val" id="v-hours">4 hrs</span></div><input type="range" min="1" max="12" step="1" value="4" oninput="updatePredictor(this,'hours')"></div>
+      <div class="slider-group"><div class="slider-label"><span>Attendance (%)</span><span class="slider-val" id="v-att">75%</span></div><input type="range" min="40" max="100" step="1" value="75" oninput="updatePredictor(this,'att')"></div>
+      <div class="slider-group"><div class="slider-label"><span>Study consistency score</span><span class="slider-val" id="v-cons">60%</span></div><input type="range" min="0" max="100" step="1" value="60" oninput="updatePredictor(this,'cons')"></div>
+      <div class="slider-group"><div class="slider-label"><span>Break frequency (per hour)</span><span class="slider-val" id="v-brk">2</span></div><input type="range" min="0" max="8" step="1" value="2" oninput="updatePredictor(this,'brk')"></div>
+      <div class="slider-group"><div class="slider-label"><span>Task switching rate (1–10)</span><span class="slider-val" id="v-sw">3</span></div><input type="range" min="1" max="10" step="1" value="3" oninput="updatePredictor(this,'sw')"></div>
+      <div class="slider-group"><div class="slider-label"><span>Avg pause duration (sec)</span><span class="slider-val" id="v-pause">12s</span></div><input type="range" min="2" max="40" step="1" value="12" oninput="updatePredictor(this,'pause')"></div>
+      <div style="padding:12px;background:var(--gray-light);border-radius:8px;font-size:12px;color:var(--text2);line-height:1.6;margin-top:8px">
+        <strong style="color:var(--text)">Model info:</strong> Cognitive load estimated via <strong>Random Forest classifier</strong> using interaction metrics. Score predicted via <strong>Linear Regression</strong> using study behavior features.
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">Prediction Output</div>
+        <div class="pred-box">
+          <div class="pred-score" id="pred-score">73</div>
+          <div class="pred-label">Predicted Academic Score / 100</div>
+          <div class="cl-meter" id="cl-meter">
+            <div class="cl-seg" style="background:var(--green)"></div>
+            <div class="cl-seg" style="background:var(--amber)"></div>
+            <div class="cl-seg" style="background:var(--gray-light)"></div>
+          </div>
+          <div style="font-size:12px;color:var(--green-deep);margin-top:8px;font-weight:500" id="cl-text">Cognitive Load: Medium</div>
+        </div>
+        <div id="pred-alert"></div>
+        <div style="position:relative;width:100%;height:160px"><canvas id="predChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Model Recommendation</div>
+        <div id="pred-reco"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXTENSION PAGE -->
+<div class="page" id="page-extension">
+  <div class="page-title">Chrome Extension — Student Interface</div>
+  <div class="page-sub">Runs silently in the background on any website — NPTEL, YouTube, GeeksForGeeks, college LMS — and shows this popup when clicked</div>
+
+  <div class="grid-2">
+    <div>
+      <div class="alert alert-ok" style="margin-bottom:16px">✅ Works on <strong>any website</strong> — no restriction to a single platform. Student studies wherever they want.</div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">What the extension tracks</div>
+        <div class="bar-row"><div class="bar-label">Click events</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--green)"></div></div><div class="bar-val" style="font-size:11px">Any site</div></div>
+        <div class="bar-row"><div class="bar-label">Pause gaps</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--green)"></div></div><div class="bar-val" style="font-size:11px">Any site</div></div>
+        <div class="bar-row"><div class="bar-label">Tab switches</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--green)"></div></div><div class="bar-val" style="font-size:11px">Any site</div></div>
+        <div class="bar-row"><div class="bar-label">Time per domain</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--green)"></div></div><div class="bar-val" style="font-size:11px">Any site</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">System Architecture</div>
+        <div class="arch-flow">
+          <div class="arch-box"><div class="arch-box-title">Chrome Extension</div><div class="arch-box-sub">Collects behavior data</div></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-box dark"><div class="arch-box-title">Backend + ML</div><div class="arch-box-sub">Stores · Classifies · Predicts</div></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-box"><div class="arch-box-title">Teacher Dashboard</div><div class="arch-box-sub">All students view</div></div>
+        </div>
+        <div style="text-align:center;margin-top:4px;font-size:12px;color:var(--text3)">↓ Student also sees their own data via the extension popup ↓</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="ext-popup">
+        <div class="ext-header">
+          <div class="ext-logo"><div class="pulse"></div> CognoLearn</div>
+          <div class="ext-status" id="ext-timer-label">Tracking · 24:13</div>
+        </div>
+        <div class="ext-tabs">
+          <button class="ext-tab active" onclick="extTab('now',this)">Now</button>
+          <button class="ext-tab" onclick="extTab('insights',this)">Insights</button>
+          <button class="ext-tab" onclick="extTab('history',this)">History</button>
+        </div>
+
+        <div id="ext-now">
+          <div class="ext-body">
+            <div class="ext-stats">
+              <div class="ext-stat"><div class="ext-stat-val" id="ext-timer">24:13</div><div class="ext-stat-label">Session</div></div>
+              <div class="ext-stat"><div class="ext-stat-val">47</div><div class="ext-stat-label">Clicks</div></div>
+              <div class="ext-stat"><div class="ext-stat-val">3</div><div class="ext-stat-label">Tab switches</div></div>
+            </div>
+            <div class="ext-section">
+              <div class="ext-section-title">Cognitive load indicators <span class="badge badge-med">Medium</span></div>
+              <div class="bar-row" style="margin-bottom:7px"><div class="bar-label" style="width:80px;font-size:11px">Click rate</div><div class="bar-track"><div class="bar-fill" style="width:54%;background:var(--amber)"></div></div><div class="bar-val" style="font-size:11px">54%</div></div>
+              <div class="bar-row" style="margin-bottom:7px"><div class="bar-label" style="width:80px;font-size:11px">Pause dur.</div><div class="bar-track"><div class="bar-fill" style="width:61%;background:var(--amber)"></div></div><div class="bar-val" style="font-size:11px">61%</div></div>
+              <div class="bar-row" style="margin-bottom:0"><div class="bar-label" style="width:80px;font-size:11px">Task switch</div><div class="bar-track"><div class="bar-fill" style="width:38%;background:var(--green)"></div></div><div class="bar-val" style="font-size:11px">38%</div></div>
+            </div>
+            <div class="ext-section">
+              <div class="ext-section-title">Time per site</div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span>nptel.ac.in</span><span style="color:var(--green-dark);font-weight:500">18 min</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span>youtube.com</span><span style="color:var(--amber-dark);font-weight:500">6 min</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px"><span>geeksforgeeks.org</span><span style="color:var(--text3);font-weight:500">3 min</span></div>
+            </div>
+            <div class="ext-reco"><span style="font-size:15px">💡</span><div class="ext-reco-text">You've been studying 24 min — take a 5-min break to reset cognitive load.</div></div>
+          </div>
+        </div>
+
+        <div id="ext-insights" style="display:none">
+          <div class="ext-body">
+            <div style="text-align:center;padding:12px 0 16px">
+              <div style="font-size:40px;font-weight:600;color:var(--green-dark);font-family:'DM Mono',monospace">78<span style="font-size:16px;color:var(--text3)">/100</span></div>
+              <div style="font-size:12px;color:var(--text3);margin-top:4px">Predicted score — today's session</div>
+            </div>
+            <div class="ext-section">
+              <div class="ext-section-title">Today's metrics</div>
+              <div class="bar-row" style="margin-bottom:7px"><div class="bar-label" style="width:80px;font-size:11px">Focus score</div><div class="bar-track"><div class="bar-fill" style="width:65%;background:var(--green)"></div></div><div class="bar-val" style="font-size:11px">65%</div></div>
+              <div class="bar-row" style="margin-bottom:0"><div class="bar-label" style="width:80px;font-size:11px">Overload risk</div><div class="bar-track"><div class="bar-fill" style="width:42%;background:var(--amber)"></div></div><div class="bar-val" style="font-size:11px">42%</div></div>
+            </div>
+            <div class="ext-reco"><span style="font-size:15px">📈</span><div class="ext-reco-text">Split into two 25-min blocks — focus drops after 40 min sessions.</div></div>
+            <div class="ext-reco" style="background:var(--blue-light)"><span style="font-size:15px">🔁</span><div class="ext-reco-text" style="color:var(--blue-dark)">You switched to YouTube 3 times — minimize distractions during study.</div></div>
+          </div>
+        </div>
+
+        <div id="ext-history" style="display:none">
+          <div class="ext-body">
+            <div class="ext-section">
+              <div class="ext-section-title">This week</div>
+              <div class="week-chart" style="height:70px">
+                <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:55%;background:var(--green)"></div></div><div class="week-day">Mon</div></div>
+                <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:70%;background:var(--green)"></div></div><div class="week-day">Tue</div></div>
+                <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:35%;background:var(--amber)"></div></div><div class="week-day">Wed</div></div>
+                <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:85%;background:var(--green)"></div></div><div class="week-day">Thu</div></div>
+                <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:60%;background:var(--green)"></div></div><div class="week-day">Fri</div></div>
+                <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:20%;background:var(--red)"></div></div><div class="week-day">Sat</div></div>
+                <div class="week-col"><div class="week-bar-wrap"><div class="week-bar" style="height:45%;background:var(--blue)"></div></div><div class="week-day">Now</div></div>
+              </div>
+            </div>
+            <div class="ext-stats" style="margin-top:10px">
+              <div class="ext-stat"><div class="ext-stat-val">5.2h</div><div class="ext-stat-label">Avg/day</div></div>
+              <div class="ext-stat"><div class="ext-stat-val" style="color:var(--amber-dark)">Med</div><div class="ext-stat-label">Avg load</div></div>
+              <div class="ext-stat"><div class="ext-stat-val">74%</div><div class="ext-stat-label">Efficiency</div></div>
+            </div>
+            <div class="ext-reco" style="background:var(--amber-light);margin-top:10px"><span style="font-size:15px">⚠️</span><div class="ext-reco-text" style="color:var(--amber-dark)">Saturday study time was very low — maintain consistency across all days.</div></div>
+          </div>
+        </div>
+
+        <div class="ext-footer">
+          <button class="ext-btn ext-btn-outline">Export CSV</button>
+          <button class="ext-btn ext-btn-primary">Full Dashboard ↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="page" id="page-analytics">
+  <div class="page-title">Analytics & Model Insights</div>
+  <div class="page-sub">Correlation analysis, Random Forest feature importance, and cognitive load distribution across the class</div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Correlation Analysis — Feature vs Academic Performance</div>
+    <div class="corr-grid">
+      <div class="corr-cell"><div class="corr-label">Study hours ↔ Score</div><div class="corr-val" style="color:var(--green-dark)">+0.71</div></div>
+      <div class="corr-cell"><div class="corr-label">Consistency ↔ Score</div><div class="corr-val" style="color:var(--green-dark)">+0.64</div></div>
+      <div class="corr-cell"><div class="corr-label">Attendance ↔ Score</div><div class="corr-val" style="color:var(--green-dark)">+0.53</div></div>
+      <div class="corr-cell"><div class="corr-label">Cognitive load ↔ Score</div><div class="corr-val" style="color:var(--red-dark)">−0.68</div></div>
+      <div class="corr-cell"><div class="corr-label">Task switching ↔ Score</div><div class="corr-val" style="color:var(--red-dark)">−0.58</div></div>
+      <div class="corr-cell"><div class="corr-label">Pause duration ↔ Score</div><div class="corr-val" style="color:var(--amber-dark)">−0.44</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Cognitive Load Distribution (Class of 24)</div>
+      <div style="position:relative;width:100%;height:200px"><canvas id="distChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Study Hours vs Predicted Score</div>
+      <div style="position:relative;width:100%;height:200px"><canvas id="scatterChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Random Forest — Feature Importance Rankings</div>
+    <div class="bar-row"><div class="bar-label">Study hours</div><div class="bar-track"><div class="bar-fill" style="width:88%;background:var(--green)"></div></div><div class="bar-val">88%</div></div>
+    <div class="bar-row"><div class="bar-label">Consistency</div><div class="bar-track"><div class="bar-fill" style="width:82%;background:var(--green)"></div></div><div class="bar-val">82%</div></div>
+    <div class="bar-row"><div class="bar-label">Task switching</div><div class="bar-track"><div class="bar-fill" style="width:76%;background:var(--red)"></div></div><div class="bar-val">76%</div></div>
+    <div class="bar-row"><div class="bar-label">Attendance</div><div class="bar-track"><div class="bar-fill" style="width:71%;background:var(--green)"></div></div><div class="bar-val">71%</div></div>
+    <div class="bar-row"><div class="bar-label">Pause duration</div><div class="bar-track"><div class="bar-fill" style="width:65%;background:var(--amber)"></div></div><div class="bar-val">65%</div></div>
+    <div class="bar-row"><div class="bar-label">Break frequency</div><div class="bar-track"><div class="bar-fill" style="width:58%;background:var(--amber)"></div></div><div class="bar-val">58%</div></div>
+    <div class="bar-row"><div class="bar-label">Session length</div><div class="bar-track"><div class="bar-fill" style="width:52%;background:var(--blue)"></div></div><div class="bar-val">52%</div></div>
+  </div>
+</div>
+
+<script>
+const students = [
+  { name:"Priya Sharma", cgpa:8.7, cl:"Medium", eff:"74%", score:82,
+    bars:[{l:"Study hrs/day",v:68,c:"var(--green)"},{l:"Consistency",v:74,c:"var(--green)"},{l:"Attendance",v:86,c:"var(--green)"},{l:"Task switching",v:38,c:"var(--green)"},{l:"Pause duration",v:61,c:"var(--amber)"}],
+    recos:[{i:"⏱",bg:"var(--green-light)",t:"Reduce session length to 45-min blocks",tag:"Cognitive load relief"},{i:"📅",bg:"var(--blue-light)",t:"Study at fixed times daily to build consistency",tag:"Habit formation"},{i:"🔁",bg:"var(--amber-light)",t:"Minimize task-switching during deep study",tag:"Focus optimization"}]},
+  { name:"Rahul Verma", cgpa:6.2, cl:"High", eff:"38%", score:61,
+    bars:[{l:"Study hrs/day",v:40,c:"var(--red)"},{l:"Consistency",v:32,c:"var(--red)"},{l:"Attendance",v:64,c:"var(--amber)"},{l:"Task switching",v:91,c:"var(--red)"},{l:"Pause duration",v:82,c:"var(--red)"}],
+    recos:[{i:"🛑",bg:"var(--red-light)",t:"Use Pomodoro — 25 min study, 5 min break",tag:"Urgent intervention"},{i:"📖",bg:"var(--amber-light)",t:"One subject per session — no multitasking",tag:"Focus strategy"},{i:"💤",bg:"var(--green-light)",t:"Improve sleep schedule to restore cognitive capacity",tag:"Recovery"}]},
+  { name:"Ananya Singh", cgpa:9.1, cl:"Low", eff:"92%", score:91,
+    bars:[{l:"Study hrs/day",v:85,c:"var(--green)"},{l:"Consistency",v:94,c:"var(--green)"},{l:"Attendance",v:96,c:"var(--green)"},{l:"Task switching",v:15,c:"var(--green)"},{l:"Pause duration",v:18,c:"var(--green)"}],
+    recos:[{i:"🚀",bg:"var(--green-light)",t:"Excellent! Consider advanced challenge materials",tag:"Growth track"},{i:"🤝",bg:"var(--blue-light)",t:"Peer-teaching deepens retention further",tag:"Knowledge consolidation"},{i:"🎯",bg:"var(--gray-light)",t:"Set competitive benchmarks to stay motivated",tag:"Motivation"}]},
+  { name:"Dev Patel", cgpa:7.4, cl:"Medium", eff:"61%", score:74,
+    bars:[{l:"Study hrs/day",v:62,c:"var(--green)"},{l:"Consistency",v:55,c:"var(--amber)"},{l:"Attendance",v:78,c:"var(--green)"},{l:"Task switching",v:62,c:"var(--amber)"},{l:"Pause duration",v:55,c:"var(--amber)"}],
+    recos:[{i:"📈",bg:"var(--blue-light)",t:"Track daily goals to improve consistency",tag:"Habit building"},{i:"⚡",bg:"var(--amber-light)",t:"Use active recall instead of passive re-reading",tag:"Study technique"},{i:"🧠",bg:"var(--green-light)",t:"Schedule heavy topics in morning peak hours",tag:"Cognitive timing"}]},
+  { name:"Sneha Joshi", cgpa:7.9, cl:"Medium", eff:"67%", score:78,
+    bars:[{l:"Study hrs/day",v:65,c:"var(--green)"},{l:"Consistency",v:68,c:"var(--green)"},{l:"Attendance",v:81,c:"var(--green)"},{l:"Task switching",v:55,c:"var(--amber)"},{l:"Pause duration",v:50,c:"var(--amber)"}],
+    recos:[{i:"🎯",bg:"var(--green-light)",t:"Reduce distraction during revision sessions",tag:"Focus"},{i:"📝",bg:"var(--blue-light)",t:"Implement spaced repetition for better retention",tag:"Memory"}]},
+  { name:"Arjun Mehta", cgpa:5.8, cl:"High", eff:"31%", score:55,
+    bars:[{l:"Study hrs/day",v:28,c:"var(--red)"},{l:"Consistency",v:25,c:"var(--red)"},{l:"Attendance",v:58,c:"var(--red)"},{l:"Task switching",v:95,c:"var(--red)"},{l:"Pause duration",v:88,c:"var(--red)"}],
+    recos:[{i:"🚨",bg:"var(--red-light)",t:"Immediate intervention required — attendance critical",tag:"Urgent"},{i:"🏫",bg:"var(--amber-light)",t:"Schedule one-on-one counseling session",tag:"Support needed"}]},
+];
+
+const clBadge = { Low:"badge-low", Medium:"badge-med", High:"badge-high" };
+const avatarBg = ["#E1F5EE","#E6F1FB","#FAEEDA","#FCEBEB","#EEEDFE","#F1EFE8"];
+const avatarFg = ["#085041","#042C53","#633806","#501313","#26215C","#2C2C2A"];
+const initials = n => n.split(' ').map(w=>w[0]).join('');
+
+function buildTable() {
+  document.getElementById('student-tbody').innerHTML = students.map((s,i) => `
+    <tr onclick="showDetail(${i})" id="row-${i}">
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar" style="background:${avatarBg[i]};color:${avatarFg[i]}">${initials(s.name)}</div>
+        <div><div style="font-weight:500">${s.name}</div><div style="font-size:11px;color:var(--text3)">Sem 4 · CSE</div></div>
+      </div></td>
+      <td style="font-family:'DM Mono',monospace">${s.cgpa}</td>
+      <td><span class="badge ${clBadge[s.cl]}">${s.cl}</span></td>
+      <td style="font-family:'DM Mono',monospace">${s.eff}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:500">${s.score}/100</td>
+      <td>${s.cl==='High'?'<span class="badge badge-high">⚠ Needs help</span>':s.cl==='Low'?'<span class="badge badge-low">✓ On track</span>':'<span class="badge badge-blue">Monitor</span>'}</td>
+    </tr>`).join('');
+}
+
+function showDetail(i) {
+  document.querySelectorAll('.student-table tr').forEach(r=>r.classList.remove('selected'));
+  document.getElementById('row-'+i).classList.add('selected');
+  const s = students[i];
+  document.getElementById('detail-placeholder').style.display = 'none';
+  const dp = document.getElementById('detail-panel');
+  dp.classList.add('active');
+  document.getElementById('d-avatar').style.cssText = `background:${avatarBg[i]};color:${avatarFg[i]}`;
+  document.getElementById('d-avatar').textContent = initials(s.name);
+  document.getElementById('d-name').textContent = s.name;
+  document.getElementById('d-meta').textContent = `CGPA ${s.cgpa} · Sem 4 CSE`;
+  document.getElementById('d-badge').innerHTML = `<span class="badge ${clBadge[s.cl]}">${s.cl} Load</span>`;
+  document.getElementById('d-score').textContent = s.score+'/100';
+  document.getElementById('d-eff').textContent = s.eff;
+  document.getElementById('d-bars').innerHTML = s.bars.map(b=>`<div class="bar-row"><div class="bar-label">${b.l}</div><div class="bar-track"><div class="bar-fill" style="width:${b.v}%;background:${b.c}"></div></div><div class="bar-val">${b.v}%</div></div>`).join('');
+  document.getElementById('d-recos').innerHTML = s.recos.map(r=>`<div class="reco"><div class="reco-icon" style="background:${r.bg}">${r.i}</div><div><div class="reco-text">${r.t}</div><div class="reco-tag">${r.tag}</div></div></div>`).join('');
+}
+
+function clearDetail() {
+  document.getElementById('detail-placeholder').style.display = 'block';
+  document.getElementById('detail-panel').classList.remove('active');
+  document.querySelectorAll('.student-table tr').forEach(r=>r.classList.remove('selected'));
+}
+
+function showPage(p, el) {
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelectorAll('.tnav').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(p==='analytics') renderAnalytics();
+  if(p==='predictor') setTimeout(initPredictor, 100);
+}
+
+function extTab(name, el) {
+  ['now','insights','history'].forEach(t=>document.getElementById('ext-'+t).style.display=t===name?'block':'none');
+  document.querySelectorAll('.ext-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+const pState = { hours:4, att:75, cons:60, brk:2, sw:3, pause:12 };
+let predChartInst;
+
+function updatePredictor(el, key) {
+  pState[key] = +el.value;
+  const ids = { hours:'v-hours', att:'v-att', cons:'v-cons', brk:'v-brk', sw:'v-sw', pause:'v-pause' };
+  const units = { hours:' hrs', att:'%', cons:'%', brk:'', sw:'', pause:'s' };
+  document.getElementById(ids[key]).textContent = pState[key]+units[key];
+
+  const clScore = Math.round((pState.sw*7 + pState.pause*0.9 + (8-pState.brk)*2.5) / 3.5);
+  const score = Math.min(98, Math.max(28, Math.round(pState.hours*4.8 + pState.att*0.38 + pState.cons*0.3 + pState.brk*1.8 - pState.sw*3.2 - pState.pause*0.45 - 8)));
+
+  document.getElementById('pred-score').textContent = score;
+  let clTxt, m1, m2, m3;
+  if(clScore<35){ clTxt="Low"; m1="var(--green)"; m2="var(--gray-light)"; m3="var(--gray-light)"; }
+  else if(clScore<65){ clTxt="Medium"; m1="var(--green)"; m2="var(--amber)"; m3="var(--gray-light)"; }
+  else { clTxt="High"; m1="var(--red)"; m2="var(--red)"; m3="var(--red)"; }
+  const segs = document.getElementById('cl-meter').children;
+  segs[0].style.background=m1; segs[1].style.background=m2; segs[2].style.background=m3;
+  document.getElementById('cl-text').textContent = "Cognitive Load: "+clTxt;
+  document.getElementById('pred-alert').innerHTML = score>=80
+    ? `<div class="alert alert-ok">✅ Strong parameters — high performance predicted</div>`
+    : score>=65
+    ? `<div class="alert alert-warn">⚠️ Moderate — reduce task switching to improve further</div>`
+    : `<div class="alert alert-danger">🚨 Low performance risk — improve attendance and study hours urgently</div>`;
+  document.getElementById('pred-reco').innerHTML = `<div class="reco"><div class="reco-icon" style="background:var(--green-light)">💡</div><div><div class="reco-text">${score>=80?"Excellent parameters — maintain this routine and consider increasing difficulty level.":score>=65?"Good foundation. Reducing task switching and improving consistency can push to 80+.":"Significant improvement needed. Focus on attendance, study hours, and reducing cognitive overload."}</div></div></div>`;
+
+  if(predChartInst) predChartInst.destroy();
+  predChartInst = new Chart(document.getElementById('predChart'), {
+    type:'bar',
+    data:{ labels:['Low','Below Avg','Average','Above Avg','High','Your Score'], datasets:[{ data:[35,52,64,74,86,score], backgroundColor:['#B4B2A9','#B4B2A9','#B4B2A9','#B4B2A9','#B4B2A9','#1D9E75'], borderRadius:5 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{min:0,max:100,ticks:{font:{size:10}}}, x:{ticks:{font:{size:10}}} } }
+  });
+}
+
+function initPredictor() { updatePredictor({value:4},'hours'); }
+
+let distInst, scatterInst;
+function renderAnalytics() {
+  const dc = document.getElementById('distChart');
+  if(distInst) distInst.destroy();
+  distInst = new Chart(dc, {
+    type:'doughnut',
+    data:{ labels:['Low load (28%)','Medium load (45%)','High load (27%)'], datasets:[{data:[28,45,27],backgroundColor:['#1D9E75','#EF9F27','#E24B4A'],borderWidth:0,hoverOffset:4}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:12}}} }
+  });
+  const sc = document.getElementById('scatterChart');
+  if(scatterInst) scatterInst.destroy();
+  scatterInst = new Chart(sc, {
+    type:'scatter',
+    data:{ datasets:[{ data:[{x:2,y:42},{x:3,y:55},{x:4,y:61},{x:4,y:67},{x:5,y:70},{x:5,y:74},{x:6,y:76},{x:6,y:79},{x:7,y:82},{x:7,y:85},{x:8,y:83},{x:8,y:88},{x:9,y:90},{x:10,y:91}], backgroundColor:'#1D9E75', pointRadius:6 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{title:{display:true,text:'Study hrs/day',font:{size:11}},ticks:{font:{size:10}}}, y:{title:{display:true,text:'Predicted Score',font:{size:11}},min:30,max:100,ticks:{font:{size:10}}} } }
+  });
+}
+
+let sec = 24*60+13;
+setInterval(()=>{
+  sec++;
+  const m=Math.floor(sec/60), s=sec%60, t=m+':'+(s<10?'0':'')+s;
+  const a=document.getElementById('ext-timer'), b=document.getElementById('ext-timer-label');
+  if(a) a.textContent=t;
+  if(b) b.textContent='Tracking · '+t;
+},1000);
+
+buildTable();
+</script>
+</body>
+</html>
